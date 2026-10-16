@@ -14,8 +14,8 @@ class PatientRepository(
     private val json: Json
 ) {
 
-    suspend fun getPatients(): Result<List<Patient>> = safeCall { api.getPatients() }
-
+    suspend fun getPatients(statut: String? = null): Result<List<Patient>> =
+        safeCall { api.getPatients(statut) }
     suspend fun createPatient(request: PatientRequest): Result<Patient> =
         safeCall { api.createPatient(request) }
 

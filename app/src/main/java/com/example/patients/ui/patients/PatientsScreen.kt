@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.patients.data.model.Patient
 import com.example.patients.data.model.PatientRequest
+import androidx.compose.material3.FilterChip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +57,7 @@ fun PatientsScreen(
     viewModel: PatientViewModel = viewModel(factory = PatientViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val statutFilter by viewModel.statutFilter.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var patientToEdit by remember { mutableStateOf<Patient?>(null) }
@@ -84,30 +86,42 @@ fun PatientsScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            when (val state = uiState) {
-                is PatientsUiState.Loading ->
-                    CircularProgressIndicator(Modifier.align(Alignment.Center))
+            FilterBar(
+                selected = statutFilter,
+                onSelect = { viewModel.setStatutFilter(it) }
+            )
 
-                is PatientsUiState.Error ->
-                    ErrorContent(
-                        message = state.message,
-                        onRetry = { viewModel.loadPatients() },
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                when (val state = uiState) {
+                    is PatientsUiState.Loading ->
+                        CircularProgressIndicator(Modifier.align(Alignment.Center))
 
-                is PatientsUiState.Success ->
-                    PatientList(
-                        patients = state.patients,
-                        onEdit = { patientToEdit = it },
-                        onDelete = { viewModel.deletePatient(it) }
-                    )
+                    is PatientsUiState.Error ->
+                        ErrorContent(
+                            message = state.message,
+                            onRetry = { viewModel.loadPatients() },
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+
+                    is PatientsUiState.Success ->
+                        PatientList(
+                            patients = state.patients,
+                            onEdit = { patientToEdit = it },
+                            onDelete = { viewModel.deletePatient(it) }
+                        )
+                }
             }
         }
+
     }
     if (showAddDialog || patientToEdit != null) {
         AddPatientDialog(
@@ -247,4 +261,30 @@ fun AddPatientDialog(
             TextButton(onClick = onDismiss) { Text("Annuler") }
         }
     )
+}
+
+@Composable
+fun FilterBar(selected: String?, onSelect: (String?) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            selected = selected == null,
+            onClick = { onSelect(null) },
+            label = { Text("Tous") }
+        )
+        FilterChip(
+            selected = selected == "Actif",
+            onClick = { onSelect("Actif") },
+            label = { Text("Actif") }
+        )
+        FilterChip(
+            selected = selected == "Inactif",
+            onClick = { onSelect("Inactif") },
+            label = { Text("Inactif") }
+        )
+    }
 }

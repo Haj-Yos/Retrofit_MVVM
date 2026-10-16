@@ -23,13 +23,15 @@ class PatientViewModel(
     private val repository: PatientRepository
 ) : ViewModel() {
 
-    // État de l'écran : modifiable ici, lecture seule pour l'UI
     private val _uiState = MutableStateFlow<PatientsUiState>(PatientsUiState.Loading)
     val uiState: StateFlow<PatientsUiState> = _uiState.asStateFlow()
 
-    // Messages ponctuels à afficher une seule fois (Snackbar)
     private val _messages = MutableSharedFlow<String>()
     val messages: SharedFlow<String> = _messages.asSharedFlow()
+
+    // null = « Tous », sinon "Actif" ou "Inactif"
+    private val _statutFilter = MutableStateFlow<String?>(null)
+    val statutFilter: StateFlow<String?> = _statutFilter.asStateFlow()
 
     init {
         loadPatients()
@@ -38,10 +40,15 @@ class PatientViewModel(
     fun loadPatients() {
         _uiState.value = PatientsUiState.Loading
         viewModelScope.launch {
-            repository.getPatients()
+            repository.getPatients(_statutFilter.value)
                 .onSuccess { patients -> _uiState.value = PatientsUiState.Success(patients) }
                 .onFailure { e -> _uiState.value = PatientsUiState.Error(e.message ?: "Erreur inconnue") }
         }
+    }
+
+    fun setStatutFilter(statut: String?) {
+        _statutFilter.value = statut
+        loadPatients()
     }
 
     fun addPatient(request: PatientRequest) {
@@ -52,6 +59,17 @@ class PatientViewModel(
                     _messages.emit("${patient.prenom} ${patient.nom} ajouté")
                 }
                 .onFailure { e -> _messages.emit(e.message ?: "Ajout impossible") }
+        }
+    }
+
+    fun updatePatient(id: String, request: PatientRequest) {
+        viewModelScope.launch {
+            repository.updatePatient(id, request)
+                .onSuccess { updated ->
+                    updateList { list -> list.map { if (it.id == updated.id) updated else it } }
+                    _messages.emit("${updated.prenom} ${updated.nom} modifié")
+                }
+                .onFailure { e -> _messages.emit(e.message ?: "Modification impossible") }
         }
     }
 
@@ -74,18 +92,6 @@ class PatientViewModel(
         }
     }
 
-    fun updatePatient(id: String, request: PatientRequest) {
-        viewModelScope.launch {
-            repository.updatePatient(id, request)
-                .onSuccess { updated ->
-                    updateList { list -> list.map { if (it.id == updated.id) updated else it } }
-                    _messages.emit("${updated.prenom} ${updated.nom} modifié")
-                }
-                .onFailure { e -> _messages.emit(e.message ?: "Modification impossible") }
-        }
-    }
-
-    // Indique à Android comment construire ce ViewModel (il a besoin du repository)
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
