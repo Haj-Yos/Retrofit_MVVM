@@ -74,6 +74,17 @@ class PatientViewModel(
         }
     }
 
+    fun updatePatient(id: String, request: PatientRequest) {
+        viewModelScope.launch {
+            repository.updatePatient(id, request)
+                .onSuccess { updated ->
+                    updateList { list -> list.map { if (it.id == updated.id) updated else it } }
+                    _messages.emit("${updated.prenom} ${updated.nom} modifié")
+                }
+                .onFailure { e -> _messages.emit(e.message ?: "Modification impossible") }
+        }
+    }
+
     // Indique à Android comment construire ce ViewModel (il a besoin du repository)
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {

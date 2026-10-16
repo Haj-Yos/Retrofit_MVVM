@@ -58,6 +58,8 @@ fun PatientsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
+    var patientToEdit by remember { mutableStateOf<Patient?>(null) }
+
 
     // Affiche chaque message envoyé par le ViewModel
     LaunchedEffect(Unit) {
@@ -101,18 +103,25 @@ fun PatientsScreen(
                 is PatientsUiState.Success ->
                     PatientList(
                         patients = state.patients,
+                        onEdit = { patientToEdit = it },
                         onDelete = { viewModel.deletePatient(it) }
                     )
             }
         }
     }
-
-    if (showAddDialog) {
+    if (showAddDialog || patientToEdit != null) {
         AddPatientDialog(
-            onDismiss = { showAddDialog = false },
-            onConfirm = { request ->
-                viewModel.addPatient(request)
+            patient = patientToEdit,
+            onDismiss = {
                 showAddDialog = false
+                patientToEdit = null
+            },
+            onConfirm = { request ->
+                val editing = patientToEdit
+                if (editing == null) viewModel.addPatient(request)
+                else viewModel.updatePatient(editing.id, request)
+                showAddDialog = false
+                patientToEdit = null
             }
         )
     }
@@ -131,7 +140,11 @@ fun ErrorContent(message: String, onRetry: () -> Unit, modifier: Modifier = Modi
 }
 
 @Composable
-fun PatientList(patients: List<Patient>, onDelete: (Patient) -> Unit) {
+fun PatientList(
+    patients: List<Patient>,
+    onEdit: (Patient) -> Unit,
+    onDelete: (Patient) -> Unit
+) {
     if (patients.isEmpty()) {
         Text("Aucun patient", modifier = Modifier.padding(24.dp))
     } else {
@@ -140,15 +153,19 @@ fun PatientList(patients: List<Patient>, onDelete: (Patient) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(patients, key = { it.id }) { patient ->
-                PatientCard(patient = patient, onDelete = { onDelete(patient) })
+                PatientCard(
+                    patient = patient,
+                    onClick = { onEdit(patient) },
+                    onDelete = { onDelete(patient) }
+                )
             }
         }
     }
 }
 
 @Composable
-fun PatientCard(patient: Patient, onDelete: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+fun PatientCard(patient: Patient, onClick: () -> Unit, onDelete: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -175,16 +192,20 @@ fun PatientCard(patient: Patient, onDelete: () -> Unit) {
 }
 
 @Composable
-fun AddPatientDialog(onDismiss: () -> Unit, onConfirm: (PatientRequest) -> Unit) {
-    var nom by rememberSaveable { mutableStateOf("") }
-    var prenom by rememberSaveable { mutableStateOf("") }
-    var age by rememberSaveable { mutableStateOf("") }
-    var medecin by rememberSaveable { mutableStateOf("") }
+fun AddPatientDialog(
+    patient: Patient? = null,
+    onDismiss: () -> Unit,
+    onConfirm: (PatientRequest) -> Unit
+) {
+    var nom by rememberSaveable { mutableStateOf(patient?.nom ?: "") }
+    var prenom by rememberSaveable { mutableStateOf(patient?.prenom ?: "") }
+    var age by rememberSaveable { mutableStateOf(patient?.age?.toString() ?: "") }
+    var medecin by rememberSaveable { mutableStateOf(patient?.medecin ?: "") }
     val formulaireValide = nom.isNotBlank() && prenom.isNotBlank()
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nouveau patient") },
+        title = { Text(if (patient == null) "Nouveau patient" else "Modifier le patient") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
@@ -215,6 +236,7 @@ fun AddPatientDialog(onDismiss: () -> Unit, onConfirm: (PatientRequest) -> Unit)
                             nom = nom.trim(),
                             prenom = prenom.trim(),
                             age = age.toIntOrNull(),
+                            telephone = patient?.telephone, // conservé : le formulaire n'a pas ce champ
                             medecin = medecin.trim().ifBlank { null }
                         )
                     )

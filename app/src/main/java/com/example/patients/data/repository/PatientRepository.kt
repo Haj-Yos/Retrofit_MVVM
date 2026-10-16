@@ -48,4 +48,7 @@ class PatientRepository(
             else -> apiError.message
         }
     }
+
+    suspend fun updatePatient(id: String, request: PatientRequest): Result<Patient> =
+        safeCall { api.updatePatient(id, request) }
 }
