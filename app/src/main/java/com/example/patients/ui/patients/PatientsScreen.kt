@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -22,6 +23,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,11 +51,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.patients.data.model.Patient
 import com.example.patients.data.model.PatientRequest
-import androidx.compose.material3.FilterChip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PatientsScreen(
+    onShowConsultations: (Patient) -> Unit,
     viewModel: PatientViewModel = viewModel(factory = PatientViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -61,7 +63,6 @@ fun PatientsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var patientToEdit by remember { mutableStateOf<Patient?>(null) }
-
 
     // Affiche chaque message envoyé par le ViewModel
     LaunchedEffect(Unit) {
@@ -116,13 +117,14 @@ fun PatientsScreen(
                         PatientList(
                             patients = state.patients,
                             onEdit = { patientToEdit = it },
+                            onConsultations = onShowConsultations,
                             onDelete = { viewModel.deletePatient(it) }
                         )
                 }
             }
         }
-
     }
+
     if (showAddDialog || patientToEdit != null) {
         AddPatientDialog(
             patient = patientToEdit,
@@ -137,6 +139,32 @@ fun PatientsScreen(
                 showAddDialog = false
                 patientToEdit = null
             }
+        )
+    }
+}
+
+@Composable
+fun FilterBar(selected: String?, onSelect: (String?) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            selected = selected == null,
+            onClick = { onSelect(null) },
+            label = { Text("Tous") }
+        )
+        FilterChip(
+            selected = selected == "Actif",
+            onClick = { onSelect("Actif") },
+            label = { Text("Actif") }
+        )
+        FilterChip(
+            selected = selected == "Inactif",
+            onClick = { onSelect("Inactif") },
+            label = { Text("Inactif") }
         )
     }
 }
@@ -157,6 +185,7 @@ fun ErrorContent(message: String, onRetry: () -> Unit, modifier: Modifier = Modi
 fun PatientList(
     patients: List<Patient>,
     onEdit: (Patient) -> Unit,
+    onConsultations: (Patient) -> Unit,
     onDelete: (Patient) -> Unit
 ) {
     if (patients.isEmpty()) {
@@ -170,6 +199,7 @@ fun PatientList(
                 PatientCard(
                     patient = patient,
                     onClick = { onEdit(patient) },
+                    onConsultations = { onConsultations(patient) },
                     onDelete = { onDelete(patient) }
                 )
             }
@@ -177,8 +207,14 @@ fun PatientList(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PatientCard(patient: Patient, onClick: () -> Unit, onDelete: () -> Unit) {
+fun PatientCard(
+    patient: Patient,
+    onClick: () -> Unit,
+    onConsultations: () -> Unit,
+    onDelete: () -> Unit
+) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -197,6 +233,9 @@ fun PatientCard(patient: Patient, onClick: () -> Unit, onDelete: () -> Unit) {
                     ).joinToString(" · "),
                     style = MaterialTheme.typography.bodyMedium
                 )
+            }
+            IconButton(onClick = onConsultations) {
+                Icon(Icons.Default.DateRange, contentDescription = "Consultations")
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "Supprimer")
@@ -261,30 +300,4 @@ fun AddPatientDialog(
             TextButton(onClick = onDismiss) { Text("Annuler") }
         }
     )
-}
-
-@Composable
-fun FilterBar(selected: String?, onSelect: (String?) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        FilterChip(
-            selected = selected == null,
-            onClick = { onSelect(null) },
-            label = { Text("Tous") }
-        )
-        FilterChip(
-            selected = selected == "Actif",
-            onClick = { onSelect("Actif") },
-            label = { Text("Actif") }
-        )
-        FilterChip(
-            selected = selected == "Inactif",
-            onClick = { onSelect("Inactif") },
-            label = { Text("Inactif") }
-        )
-    }
 }
