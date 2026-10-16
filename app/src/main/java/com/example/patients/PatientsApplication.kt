@@ -24,51 +24,12 @@ import com.example.patients.ui.patients.ErrorContent
 import com.example.patients.ui.patients.PatientList
 import com.example.patients.ui.patients.PatientViewModel
 import com.example.patients.ui.patients.PatientsUiState
+import com.example.patients.ui.patients.PatientsScreen
 
 class PatientsApplication : Application() {
     // Créé une seule fois, partagé par toute l'application
     val container by lazy { AppContainer() }
 }
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PatientsScreen(
-    viewModel: PatientViewModel = viewModel(factory = PatientViewModel.Factory)
-) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Patients") },
-                actions = {
-                    IconButton(onClick = { viewModel.loadPatients() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Actualiser")
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            when (val state = uiState) {
-                is PatientsUiState.Loading ->
-                    CircularProgressIndicator(Modifier.align(Alignment.Center))
-
-                is PatientsUiState.Error ->
-                    ErrorContent(
-                        message = state.message,
-                        onRetry = { viewModel.loadPatients() },
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-
-                is PatientsUiState.Success ->
-                    PatientList(patients = state.patients)
-            }
-        }
-    }
-}
 
 
